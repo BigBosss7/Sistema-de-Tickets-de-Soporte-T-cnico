@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from app.database import engine
 
 app = FastAPI(
     title="Support Ticket System",
@@ -26,4 +27,15 @@ def health():
         "api": "running",
         "version": "0.1.0"
     }
+
+@app.get("/db-check")
+def db_check():
+    try:
+        with engine.connect():
+            return {"database": "connected"}
+    except Exception as error:
+        return {
+            "database": "error",
+            "detail": str(error)
+        }
 
