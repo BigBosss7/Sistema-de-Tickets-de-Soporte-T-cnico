@@ -1,11 +1,20 @@
 from fastapi import FastAPI
-from app.database import engine
+from typing import List 
+from app.database import (
+    engine,
+    Base,
+    SessionLocal
+)
+from app.models.user import User
+from app.schemas.user import UserResponse
 
 app = FastAPI(
     title="Support Ticket System",
     description="API para gestionar tickets de soporte técnico.",
     version="0.1.0"
 )
+
+Base.metadata.create_all(bind=engine)
 
 @app.get(
     "/",
@@ -39,3 +48,13 @@ def db_check():
             "detail": str(error)
         }
 
+@app.get("/users", response_model=List[UserResponse])
+def get_users():
+
+    db = SessionLocal()
+
+    users = db.query(User).all()
+
+    db.close()
+
+    return users
