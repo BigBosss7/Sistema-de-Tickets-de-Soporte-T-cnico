@@ -5,6 +5,7 @@ from sqlalchemy import (
     DateTime
 )
 from app.database import Base
+from datetime import datetime
 
 class User(Base):
     __tablename__="users"
@@ -19,4 +20,4 @@ class User(Base):
 
     role = Column(String(50), nullable=False)
 
-    created_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
