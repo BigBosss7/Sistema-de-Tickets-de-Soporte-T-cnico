@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from typing import List 
+from typing import List, Literal  
 from app.database import (
     engine,
     Base,
@@ -9,6 +9,14 @@ from app.models.user import User
 from app.models.ticket import Ticket
 from app.schemas.user import UserCreate, UserResponse
 from app.schemas.ticket import TicketCreate, TicketResponse, TicketAssign
+
+TicketStatus = Literal[
+    "OPEN",
+    "ASSIGNED",
+    "IN_PROGRESS",
+    "RESOLVED",
+    "CLOSED"
+]
 
 app = FastAPI(
     title="Support Ticket System",
@@ -99,15 +107,25 @@ def create_ticket(ticket: TicketCreate):
     return new_ticket 
 
 @app.get("/tickets", response_model=List[TicketResponse])
-def get_tickets():
+def get_tickets(status: TicketStatus | None = None, 
+                assigned_to: int | None = None
+                ):
 
     db = SessionLocal()
 
-    tickets = db.query(Ticket).all() # SELECT * FROM tickets 
+    query = db.query(Ticket)
+
+    if status:
+        query = query.filter(Ticket.status == status)
+
+    if assigned_to:
+        query = query.filter(Ticket.assigned_to_id == assigned_to)
+
+    tickets = query.all()
 
     db.close()
 
-    return tickets
+    return tickets 
 
 @app.get("/tickets/{ticket_id}", response_model=TicketResponse)
 def get_ticket(ticket_id: int):
