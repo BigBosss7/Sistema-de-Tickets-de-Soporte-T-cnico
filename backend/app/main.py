@@ -141,16 +141,10 @@ def assign_ticket(ticket_id: int, assignment: TicketAssign):
         .first()
     )
 
-    if ticket is None:
-        db.close()
-        raise HTTPException(
-            status_code=404,
-            detail="Ticket not found"
-        )
-
+   
     technician = (
         db.query(User)
-        .filter(User.id == assignment.assigned_to_id, User.role == "TECHNICIAN")
+        .filter(User.id == assignment.assigned_to_id)
         .first()
     )
 
@@ -159,6 +153,14 @@ def assign_ticket(ticket_id: int, assignment: TicketAssign):
         raise HTTPException(
             status_code=404,
             detail="Technician not found"
+        )
+
+    if technician.role != "TECHNICIAN":
+        db.close()
+
+        raise HTTPException(
+            status_code=400,
+            detail="Only technicians can be assigned tickets"
         )
 
     ticket.assigned_to_id = assignment.assigned_to_id
