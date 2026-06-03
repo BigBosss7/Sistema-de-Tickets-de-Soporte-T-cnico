@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from typing import List 
 from app.database import (
     engine,
@@ -6,7 +6,9 @@ from app.database import (
     SessionLocal
 )
 from app.models.user import User
+from app.models.ticket import Ticket
 from app.schemas.user import UserCreate, UserResponse
+from app.schemas.ticket import TicketCreate, TicketResponse, TicketAssign
 
 app = FastAPI(
     title="Support Ticket System",
@@ -57,6 +59,7 @@ def get_users():
 
     db.close()
 
+
     return users
 
 @app.post("/users", response_model=UserResponse)
@@ -76,3 +79,93 @@ def create_user(user: UserCreate):
     db.close()
 
     return new_user
+
+@app.post("/tickets", response_model=TicketResponse)
+def create_ticket(ticket: TicketCreate):
+    db = SessionLocal()
+
+    new_ticket = Ticket(
+        title=ticket.title,
+        description=ticket.description,
+        priority=ticket.priority,
+        created_by_id=ticket.created_by_id
+    )
+
+    db.add(new_ticket)
+    db.commit()
+    db.refresh(new_ticket)
+    db.close()
+
+    return new_ticket 
+
+@app.get("/tickets", response_model=List[TicketResponse])
+def get_tickets():
+
+    db = SessionLocal()
+
+    tickets = db.query(Ticket).all() # SELECT * FROM tickets 
+
+    db.close()
+
+    return tickets
+
+@app.get("/tickets/{ticket_id}", response_model=TicketResponse)
+def get_ticket(ticket_id: int):
+
+    db = SessionLocal()
+
+    ticket = (
+        db.query(Ticket)
+        .filter(Ticket.id == ticket_id)
+        .first()
+    )
+
+    db.close()
+
+    if ticket is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket not found"
+        )
+        
+
+    return ticket 
+
+@app.patch("/tickets/{ticket_id}/assign", response_model=TicketResponse)
+def assign_ticket(ticket_id: int, assignment: TicketAssign):
+    db = SessionLocal()
+
+    ticket = (
+        db.query(Ticket)
+        .filter(Ticket.id == ticket_id)
+        .first()
+    )
+
+    if ticket is None:
+        db.close()
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket not found"
+        )
+
+    technician = (
+        db.query(User)
+        .filter(User.id == assignment.assigned_to_id, User.role == "TECHNICIAN")
+        .first()
+    )
+
+    if technician is None:
+        db.close()
+        raise HTTPException(
+            status_code=404,
+            detail="Technician not found"
+        )
+
+    ticket.assigned_to_id = assignment.assigned_to_id
+    ticket.status = "ASSIGNED"
+
+    db.commit()
+    db.refresh(ticket)
+    db.close()
+
+    return ticket 
