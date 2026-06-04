@@ -13,7 +13,8 @@ from app.schemas.ticket import (
     TicketResponse, 
     TicketAssign, 
     TicketStatusUpdate
-) 
+)
+from sqlalchemy import func 
 
 
 TicketStatus = Literal[
@@ -220,3 +221,38 @@ def update_ticket_status(ticket_id: int, status_update: TicketStatusUpdate):
     db.close()
 
     return ticket 
+
+
+@app.get("/dashboard/stats")
+def dashboard_stats():
+        db = SessionLocal()
+
+        total_tickets = db.query(Ticket).count()
+
+        open_tickets = (
+            db.query(Ticket)
+            .filter(Ticket.status == "OPEN")
+            .count()
+        )
+
+        tickets_by_priority = (
+            db.query(Ticket.priority, func.count(Ticket.id))
+            .group_by(Ticket.priority)
+            .all()
+        )   
+
+        tickets_by_technician = (
+            db.query(Ticket.assigned_to_id, func.count(Ticket.id))
+            .filter(Ticket.assigned_to_id.isnot(None))
+            .group_by(Ticket.assigned_to_id)
+            .all()
+        )
+
+        db.close()
+
+        return {
+            "total_tickets": total_tickets,
+            "open_tickets": open_tickets,
+            "tickets_by_priority": dict(tickets_by_priority),
+            "tickets_by_technician": dict(tickets_by_technician)
+        }
