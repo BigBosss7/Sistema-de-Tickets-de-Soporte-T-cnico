@@ -8,7 +8,13 @@ from app.database import (
 from app.models.user import User
 from app.models.ticket import Ticket
 from app.schemas.user import UserCreate, UserResponse
-from app.schemas.ticket import TicketCreate, TicketResponse, TicketAssign
+from app.schemas.ticket import (
+    TicketCreate, 
+    TicketResponse, 
+    TicketAssign, 
+    TicketStatusUpdate
+) 
+
 
 TicketStatus = Literal[
     "OPEN",
@@ -183,6 +189,31 @@ def assign_ticket(ticket_id: int, assignment: TicketAssign):
 
     ticket.assigned_to_id = assignment.assigned_to_id
     ticket.status = "ASSIGNED"
+
+    db.commit()
+    db.refresh(ticket)
+    db.close()
+
+    return ticket 
+
+@app.patch("/tickets/{ticket_id}/status", response_model=TicketResponse)
+def update_ticket_status(ticket_id: int, status_update: TicketStatusUpdate):
+    db= SessionLocal()
+
+    ticket = (
+        db.query(Ticket)
+        .filter(Ticket.id == ticket_id)
+        .first()
+    )
+
+    if ticket is None:
+        db.close()
+        raise HTTPException(
+            status_code=404,
+
+        )
+
+    ticket.status = status_update.status
 
     db.commit()
     db.refresh(ticket)

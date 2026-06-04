@@ -1,5 +1,17 @@
 from datetime import datetime
 from pydantic import BaseModel
+from typing import Literal
+
+TicketStatus = Literal[
+    "OPEN",
+    "ASSIGNED",
+    "IN_PROGRESS",
+    "RESOLVED",
+    "CLOSED"
+]
+
+class TicketStatusUpdate(BaseModel):
+    status: TicketStatus
 
 class TicketCreate(BaseModel):
     title: str
