@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from typing import List, Literal  
-from app.core.security import hash_password 
+from app.core.security import hash_password, verify_password 
 from app.database import (
     engine,
     Base,
@@ -8,6 +8,7 @@ from app.database import (
 )
 from app.models.user import User
 from app.models.ticket import Ticket
+from app.schemas.auth import LoginRequest 
 from app.schemas.user import UserCreate, UserResponse
 from app.schemas.ticket import (
     TicketCreate, 
@@ -257,3 +258,39 @@ def dashboard_stats():
             "tickets_by_priority": dict(tickets_by_priority),
             "tickets_by_technician": dict(tickets_by_technician)
         }
+
+@app.post("/login")
+def login(credentials: LoginRequest):
+    db= SessionLocal()
+
+    user = (
+        db.query(User)
+        .filter(User.email == credentials.email)
+        .first()
+    )
+
+    if user is None:
+        db.close()
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid credentails"
+        )
+
+    if not verify_password(
+        credentials.password,
+        user.password_hash
+    ):
+
+      db.close()
+      raise HTTPException(
+        satus_code=401,
+        detal="Invalid credentials"
+      )
+
+    db.close()
+
+    return {
+        "message": "Login successful",
+        "user_id": user.id,
+        "role": user.role
+    }
