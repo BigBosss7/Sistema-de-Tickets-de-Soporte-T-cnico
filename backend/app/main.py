@@ -1,6 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends 
 from typing import List, Literal  
-from app.core.security import hash_password, verify_password 
+from app.core.security import (
+    hash_password, 
+    verify_password,
+    create_access_token,
+    get_current_user
+) 
 from app.database import (
     engine,
     Base,
@@ -78,6 +83,18 @@ def get_users():
 
 
     return users
+
+@app.get("/me")
+def get_me(
+    current_user: User = Depends(get_current_user)
+):
+    return {
+        "id": current_user.id,
+        "name": current_user.name,
+        "email": current_user.email,
+        "role": current_user.role
+    }
+
 
 @app.post("/users", response_model=UserResponse)
 def create_user(user: UserCreate):
@@ -289,8 +306,16 @@ def login(credentials: LoginRequest):
 
     db.close()
 
+    access_token = create_access_token(
+        {
+            "sub": str(user.id),
+            "email": user.email,
+            "role": user.role
+        }
+    )
+
     return {
-        "message": "Login successful",
-        "user_id": user.id,
-        "role": user.role
+        "access_token": access_token,
+        "user_id": "bearer"
+        
     }
