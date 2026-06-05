@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from typing import List, Literal  
+from app.core.security import hash_password 
 from app.database import (
     engine,
     Base,
@@ -84,7 +85,7 @@ def create_user(user: UserCreate):
     new_user = User(
         name=user.name,
         email=user.email,
-        password_hash=user.password,
+        password_hash=hash_password(user.password),
         role=user.role
     )
 
