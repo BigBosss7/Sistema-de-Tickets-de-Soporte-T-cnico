@@ -134,24 +134,32 @@ def create_ticket(ticket: TicketCreate):
     return new_ticket 
 
 @app.get("/tickets", response_model=List[TicketResponse])
-def get_tickets(status: TicketStatus | None = None, 
-                assigned_to: int | None = None
-                ):
+def get_tickets(
+    status: TicketStatus | None = None, 
+    assigned_to: int | None = None,
+    current_user: User = Depends(get_current_user)
+    ):
 
     db = SessionLocal()
 
     query = db.query(Ticket)
 
+    if current_user.role == "USER":
+        query = query.filter(Ticket.created_by_id == current_user.id)
+
+    if current_user.role == "TECHNICIAN":
+        query = query.filter(Ticket.assigned_to_id == current_user.id)
+
     if status:
         query = query.filter(Ticket.status == status)
 
-    if assigned_to:
+    if assigned_to and current_user.role == "SUPERVISOR":
         query = query.filter(Ticket.assigned_to_id == assigned_to)
 
     tickets = query.all()
 
     db.close()
-
+    
     return tickets 
 
 @app.get("/tickets/{ticket_id}", response_model=TicketResponse)
