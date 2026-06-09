@@ -4,7 +4,8 @@ from app.core.security import (
     hash_password, 
     verify_password,
     create_access_token,
-    get_current_user
+    get_current_user,
+    require_supervisor
 ) 
 from app.database import (
     engine,
@@ -176,7 +177,12 @@ def get_ticket(ticket_id: int):
     return ticket 
 
 @app.patch("/tickets/{ticket_id}/assign", response_model=TicketResponse)
-def assign_ticket(ticket_id: int, assignment: TicketAssign):
+def assign_ticket(
+    ticket_id: int, 
+    assignment: TicketAssign,
+    current_user: User = Depends(require_supervisor)
+    ):
+
     db = SessionLocal()
 
     ticket = (
@@ -217,7 +223,11 @@ def assign_ticket(ticket_id: int, assignment: TicketAssign):
     return ticket 
 
 @app.patch("/tickets/{ticket_id}/status", response_model=TicketResponse)
-def update_ticket_status(ticket_id: int, status_update: TicketStatusUpdate):
+def update_ticket_status(
+    ticket_id: int, 
+    status_update: TicketStatusUpdate,
+    current_user: User = Depends(get_current_user)
+    ):
     db= SessionLocal()
 
     ticket = (
@@ -226,12 +236,24 @@ def update_ticket_status(ticket_id: int, status_update: TicketStatusUpdate):
         .first()
     )
 
+    
     if ticket is None:
         db.close()
         raise HTTPException(
             status_code=404,
-
+            detail="Ticket not found"
         )
+
+        if current_user.role == "TECHNICIAN":
+            if ticket.assigned_to_id != current_user.id:
+
+                db.close()
+
+                raise HTTPException(
+                  status_code=403,
+                  detail="You can only update your assigned tickets"
+                )
+
 
     ticket.status = status_update.status
 

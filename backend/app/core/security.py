@@ -92,3 +92,15 @@ def get_current_user(
         )
 
     return user 
+
+def require_supervisor(
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "SUPERVISOR":
+        raise HTTPException(
+            status_code=403,
+            detail="Supervisor access required"
+
+        )
+
+    return current_user
