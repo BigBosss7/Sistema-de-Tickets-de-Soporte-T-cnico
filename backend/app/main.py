@@ -23,7 +23,7 @@ from app.schemas.ticket import (
     TicketStatusUpdate
 )
 from sqlalchemy import func 
-
+from datetime import datetime, timedelta
 
 TicketStatus = Literal[
     "OPEN",
@@ -265,6 +265,12 @@ def update_ticket_status(
 
     ticket.status = status_update.status
 
+    if status_update.status == "CLOSED":
+        ticket.closed_at = datetime.utcnow()
+
+    if status_update.status != "CLOSED":
+        ticket.closed_at = None 
+
     db.commit()
     db.refresh(ticket)
     db.close()
@@ -274,36 +280,60 @@ def update_ticket_status(
 
 @app.get("/dashboard/stats")
 def dashboard_stats():
-        db = SessionLocal()
+    db = SessionLocal()
 
-        total_tickets = db.query(Ticket).count()
+    total_tickets = db.query(Ticket).count()
 
-        open_tickets = (
-            db.query(Ticket)
-            .filter(Ticket.status == "OPEN")
-            .count()
+    open_tickets = (
+        db.query(Ticket)
+        .filter(Ticket.status == "OPEN")
+        .count()
+    )
+
+    tickets_by_priority = (
+        db.query(Ticket.priority, func.count(Ticket.id))
+        .group_by(Ticket.priority)
+        .all()
+    )
+
+    tickets_by_technician = (
+        db.query(Ticket.assigned_to_id, func.count(Ticket.id))
+        .filter(Ticket.assigned_to_id.isnot(None))
+        .group_by(Ticket.assigned_to_id)
+        .all()
+    )
+
+    closed_tickets = (
+        db.query(Ticket)
+        .filter(Ticket.closed_at.isnot(None))
+        .all()
+    )
+
+    average_resolution_hours = 0
+
+    if closed_tickets:
+        total_resolution_time = timedelta()
+
+        for ticket in closed_tickets:
+            total_resolution_time += (ticket.closed_at - ticket.created_at)
+
+        average_resolution_time = total_resolution_time / len(closed_tickets)
+
+        average_resolution_hours = round(
+            average_resolution_time.total_seconds() / 3600,
+            2
         )
 
-        tickets_by_priority = (
-            db.query(Ticket.priority, func.count(Ticket.id))
-            .group_by(Ticket.priority)
-            .all()
-        )   
+    db.close()
 
-        tickets_by_technician = (
-            db.query(Ticket.assigned_to_id, func.count(Ticket.id))
-            .filter(Ticket.assigned_to_id.isnot(None))
-            .group_by(Ticket.assigned_to_id)
-            .all()
-        )
+   
 
-        db.close()
-
-        return {
-            "total_tickets": total_tickets,
-            "open_tickets": open_tickets,
-            "tickets_by_priority": dict(tickets_by_priority),
-            "tickets_by_technician": dict(tickets_by_technician)
+    return {
+       "total_tickets": total_tickets,
+       "open_tickets": open_tickets,
+       "tickets_by_priority": dict(tickets_by_priority),
+       "tickets_by_technician": dict(tickets_by_technician),
+       "average_resolution_hours": average_resolution_hours 
         }
 
 @app.post("/login")
@@ -349,3 +379,4 @@ def login(credentials: LoginRequest):
         "user_id": "bearer"
         
     }
+
