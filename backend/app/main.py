@@ -14,6 +14,7 @@ from app.database import (
 )
 from app.models.user import User
 from app.models.ticket import Ticket
+from app.models.ticket_comment import TicketComment
 from app.schemas.auth import LoginRequest 
 from app.schemas.user import UserCreate, UserResponse
 from app.schemas.ticket import (
@@ -22,6 +23,7 @@ from app.schemas.ticket import (
     TicketAssign, 
     TicketStatusUpdate
 )
+from app.schemas.ticket_comment import TicketCommentCreate, TicketCommentResponse
 from sqlalchemy import func 
 from datetime import datetime, timedelta
 
@@ -380,3 +382,73 @@ def login(credentials: LoginRequest):
         
     }
 
+@app.post(
+    "/tickets/{ticket_id}/comments",
+    response_model=TicketCommentResponse
+)
+def create_ticket_comment(
+    ticket_id: int,
+    comment: TicketCommentCreate,
+    current_user: User = Depends(get_current_user)
+):
+    db = SessionLocal()
+
+    ticket = (
+        db.query(Ticket)
+        .filter(Ticket.id == ticket_id)
+        .first()
+    )
+
+    if ticket is None:
+        db.close()
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket not found"
+        )
+
+    new_comment = TicketComment(
+        ticket_id=ticket_id,
+        user_id=current_user.id,
+        message=comment.message
+    )
+
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+    db.close()
+
+    return new_comment
+
+@app.get(
+    "/tickets/{ticket_id}/comments",
+    response_model=List[TicketCommentResponse]
+)
+def get_ticket_comments(
+    ticket_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    db = SessionLocal()
+
+    ticket = (
+        db.query(Ticket)
+        .filter(Ticket.id == ticket_id)
+        .first()
+    )
+
+    if ticket is None:
+        db.close()
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket not found"
+        )
+
+    comments = (
+        db.query(TicketComment)
+        .filter(TicketComment.ticket_id == ticket_id)
+        .order_by(TicketComment.created_at.asc())
+        .all()
+    )
+
+    db.close()
+
+    return comments  
