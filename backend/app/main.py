@@ -23,7 +23,12 @@ from app.schemas.ticket import (
     TicketAssign, 
     TicketStatusUpdate
 )
-from app.schemas.ticket_comment import TicketCommentCreate, TicketCommentResponse
+from app.schemas.ticket_comment import( 
+    TicketCommentCreate, 
+    TicketCommentResponse,
+    TicketCommentWithUserResponse
+)
+
 from sqlalchemy import func 
 from datetime import datetime, timedelta
 
@@ -421,7 +426,7 @@ def create_ticket_comment(
 
 @app.get(
     "/tickets/{ticket_id}/comments",
-    response_model=List[TicketCommentResponse]
+    response_model=List[TicketCommentWithUserResponse]
 )
 def get_ticket_comments(
     ticket_id: int,
@@ -448,6 +453,9 @@ def get_ticket_comments(
         .order_by(TicketComment.created_at.asc())
         .all()
     )
+
+    for comment in comments:
+        comment.user
 
     db.close()
 

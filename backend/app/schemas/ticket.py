@@ -10,6 +10,9 @@ TicketStatus = Literal[
     "CLOSED"
 ]
 
+
+
+
 class TicketStatusUpdate(BaseModel):
     status: TicketStatus
 

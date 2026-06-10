@@ -4,6 +4,12 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 
 from app.database import Base 
 
+from sqlalchemy.orm import relationship 
+
+user = relationship("User", back_populates="comments")
+ticket = relationship("Ticket", back_populates="comments")
+
+
 
 class TicketComment(Base):
     __tablename__ = "ticket_comments"
@@ -25,3 +31,7 @@ class TicketComment(Base):
     message = Column(Text, nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="comments")
+    
+    ticket = relationship("Ticket", back_populates="comments")

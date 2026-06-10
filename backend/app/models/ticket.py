@@ -1,6 +1,7 @@
 from datetime import datetime 
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from app.database import Base 
+from sqlalchemy.orm import relationship
 
 
 class Ticket(Base):
@@ -25,3 +26,9 @@ class Ticket(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     closed_at = Column(DateTime, nullable=True)
+
+    comments = relationship(
+        "TicketComment",
+        back_populates="ticket"
+    )
+

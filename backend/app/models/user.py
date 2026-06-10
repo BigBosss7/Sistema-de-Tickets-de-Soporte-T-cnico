@@ -6,6 +6,7 @@ from sqlalchemy import (
 )
 from app.database import Base
 from datetime import datetime
+from sqlalchemy.orm import relationship 
 
 class User(Base):
     __tablename__="users"
@@ -21,3 +22,8 @@ class User(Base):
     role = Column(String(50), nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    comments = relationship(
+        "TicketComment",
+        back_populates="user"
+    )
