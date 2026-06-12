@@ -30,6 +30,7 @@ from app.schemas.ticket_comment import(
 )
 
 from sqlalchemy import func 
+from sqlalchemy.orm import joinedload 
 from datetime import datetime, timedelta
 
 TicketStatus = Literal[
@@ -449,14 +450,13 @@ def get_ticket_comments(
 
     comments = (
         db.query(TicketComment)
+        .options(joinedload(TicketComment.user))
         .filter(TicketComment.ticket_id == ticket_id)
         .order_by(TicketComment.created_at.asc())
         .all()
     )
 
-    for comment in comments:
-        comment.user
-
+    
     db.close()
 
     return comments  
