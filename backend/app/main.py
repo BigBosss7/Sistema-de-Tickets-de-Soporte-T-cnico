@@ -15,6 +15,7 @@ from app.database import (
 from app.models.user import User
 from app.models.ticket import Ticket
 from app.models.ticket_comment import TicketComment
+from app.models.ticket_event import TicketEvent
 from app.schemas.auth import LoginRequest 
 from app.schemas.user import UserCreate, UserResponse
 from app.schemas.ticket import (
@@ -421,6 +422,21 @@ def create_ticket_comment(
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)
+
+    new_event = TicketEvent(
+        ticket_id=ticket_id,
+        user_id=current_user.id,
+        event_type="COMMENT_ADDED",
+        description="Comment added to ticket"
+    )
+
+    db.add(new_event)
+    db.commit()
+
+    db.refresh(new_comment)
+
+    response = new_comment 
+
     db.close()
 
     return new_comment
