@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends 
 from typing import List, Literal  
+from app.core.events import create_ticket_event
 from app.core.security import (
     hash_password, 
     verify_password,
@@ -138,6 +139,20 @@ def create_ticket(ticket: TicketCreate):
     db.add(new_ticket)
     db.commit()
     db.refresh(new_ticket)
+
+    
+    
+    create_ticket_event(
+        db=db,
+        ticket_id=new_ticket.id,
+        user_id=ticket.created_by_id,
+        event_type="TICKET_CREATED",
+        description="Ticket created"
+    )
+
+    db.commit()
+    db.refresh(new_ticket)
+    
     db.close()
 
     return new_ticket 
@@ -423,15 +438,16 @@ def create_ticket_comment(
     db.commit()
     db.refresh(new_comment)
 
-    new_event = TicketEvent(
+    create_ticket_event(
+        db=db,
         ticket_id=ticket_id,
         user_id=current_user.id,
         event_type="COMMENT_ADDED",
         description="Comment added to ticket"
     )
 
-    db.add(new_event)
     db.commit()
+    db.refresh()
 
     db.refresh(new_comment)
 
