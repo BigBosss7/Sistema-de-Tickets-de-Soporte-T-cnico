@@ -447,11 +447,9 @@ def create_ticket_comment(
     )
 
     db.commit()
-    db.refresh()
 
     db.refresh(new_comment)
 
-    response = new_comment 
 
     db.close()
 
