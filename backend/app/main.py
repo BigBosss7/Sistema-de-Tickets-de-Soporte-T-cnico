@@ -32,6 +32,7 @@ from app.schemas.ticket_comment import(
 )
 from app.schemas.ticket_event import TicketEventResponse
 from app.routers.auth import router as auth_router
+from app.routers.tickets import router as ticket_router
 from sqlalchemy import func 
 from sqlalchemy.orm import joinedload 
 from datetime import datetime, timedelta
@@ -51,6 +52,8 @@ app = FastAPI(
 )
 
 app.include_router(auth_router)
+
+app.include_router(ticket_router)
 
 Base.metadata.create_all(bind=engine)
 
@@ -128,66 +131,7 @@ def create_user(user: UserCreate):
 
     return new_user
 
-@app.post("/tickets", response_model=TicketResponse)
-def create_ticket(ticket: TicketCreate):
-    db = SessionLocal()
 
-    new_ticket = Ticket(
-        title=ticket.title,
-        description=ticket.description,
-        priority=ticket.priority,
-        created_by_id=ticket.created_by_id
-    )
-
-    db.add(new_ticket)
-    db.commit()
-    db.refresh(new_ticket)
-
-    
-    
-    create_ticket_event(
-        db=db,
-        ticket_id=new_ticket.id,
-        user_id=ticket.created_by_id,
-        event_type="TICKET_CREATED",
-        description="Ticket created"
-    )
-
-    db.commit()
-    db.refresh(new_ticket)
-    
-    db.close()
-
-    return new_ticket 
-
-@app.get("/tickets", response_model=List[TicketResponse])
-def get_tickets(
-    status: TicketStatus | None = None, 
-    assigned_to: int | None = None,
-    current_user: User = Depends(get_current_user)
-    ):
-
-    db = SessionLocal()
-
-    query = db.query(Ticket)
-
-    if current_user.role == "USER":
-        query = query.filter(Ticket.created_by_id == current_user.id)
-
-    if current_user.role == "TECHNICIAN":
-        query = query.filter(Ticket.assigned_to_id == current_user.id)
-
-    if status:
-        query = query.filter(Ticket.status == status)
-
-    if assigned_to and current_user.role == "SUPERVISOR":
-        query = query.filter(Ticket.assigned_to_id == assigned_to)
-
-    tickets = query.all()
-
-    db.close()
-    
-    return tickets 
 
 @app.get("/tickets/{ticket_id}", response_model=TicketResponse)
 def get_ticket(ticket_id: int):
