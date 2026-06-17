@@ -16,7 +16,7 @@ from app.database import (
 from app.models.user import User
 from app.models.ticket import Ticket
 from app.models.ticket_comment import TicketComment
-from app.models.ticket_event import TicketEvent
+from app.models.ticket_event import TicketEvent 
 from app.schemas.auth import LoginRequest 
 from app.schemas.user import UserCreate, UserResponse
 from app.schemas.ticket import (
@@ -30,7 +30,8 @@ from app.schemas.ticket_comment import(
     TicketCommentResponse,
     TicketCommentWithUserResponse
 )
-
+from app.schemas.ticket_event import TicketEventResponse
+from app.routers.auth import router as auth_router
 from sqlalchemy import func 
 from sqlalchemy.orm import joinedload 
 from datetime import datetime, timedelta
@@ -48,6 +49,8 @@ app = FastAPI(
     description="API para gestionar tickets de soporte técnico.",
     version="0.1.0"
 )
+
+app.include_router(auth_router)
 
 Base.metadata.create_all(bind=engine)
 
@@ -308,7 +311,7 @@ def update_ticket_status(
         ticket_id=ticket.id,
         user_id=current_user.id,
         event_type="STATUS_CHANGED",
-        description=f"Status changed to{status_update.status}"
+        description=f"Status changed to {status_update.status}"
     )
 
     db.commit()
@@ -377,100 +380,6 @@ def dashboard_stats():
        "average_resolution_hours": average_resolution_hours 
         }
 
-@app.post("/login")
-def login(credentials: LoginRequest):
-    db= SessionLocal()
-
-    user = (
-        db.query(User)
-        .filter(User.email == credentials.email)
-        .first()
-    )
-
-    if user is None:
-        db.close()
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid credentails"
-        )
-
-    if not verify_password(
-        credentials.password,
-        user.password_hash
-    ):
-
-      db.close()
-      raise HTTPException(
-        satus_code=401,
-        detal="Invalid credentials"
-      )
-
-    db.close()
-
-    access_token = create_access_token(
-        {
-            "sub": str(user.id),
-            "email": user.email,
-            "role": user.role
-        }
-    )
-
-    return {
-        "access_token": access_token,
-        "user_id": "bearer"
-        
-    }
-
-@app.post(
-    "/tickets/{ticket_id}/comments",
-    response_model=TicketCommentResponse
-)
-def create_ticket_comment(
-    ticket_id: int,
-    comment: TicketCommentCreate,
-    current_user: User = Depends(get_current_user)
-):
-    db = SessionLocal()
-
-    ticket = (
-        db.query(Ticket)
-        .filter(Ticket.id == ticket_id)
-        .first()
-    )
-
-    if ticket is None:
-        db.close()
-        raise HTTPException(
-            status_code=404,
-            detail="Ticket not found"
-        )
-
-    new_comment = TicketComment(
-        ticket_id=ticket_id,
-        user_id=current_user.id,
-        message=comment.message
-    )
-
-    db.add(new_comment)
-    db.commit()
-    db.refresh(new_comment)
-
-    create_ticket_event(
-        db=db,
-        ticket_id=ticket_id,
-        user_id=current_user.id,
-        event_type="COMMENT_ADDED",
-        description="Comment added to ticket"
-    )
-
-    db.commit()
-
-    db.refresh(new_comment)
-
-
-    db.close()
-
-    return new_comment
 
 @app.get(
     "/tickets/{ticket_id}/comments",
@@ -506,4 +415,40 @@ def get_ticket_comments(
     
     db.close()
 
-    return comments  
+    return comments 
+
+@app.get(
+    "/tickets/{ticket_id}/events",
+    response_model=List[TicketEventResponse]
+) 
+def get_ticket_events(
+    ticket_id: int,
+    current_user: User = Depends(get_current_user)
+):
+
+    db = SessionLocal()
+
+    ticket = (
+        db.query(Ticket)
+        .filter(Ticket.id == ticket_id)
+        .first()
+    )
+
+    if ticket is None:
+        db.close()
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket not found"
+        )
+
+    events = (
+        db.query(TicketEvent)
+        .options(joinedload(TicketEvent.user))
+        .filter(TicketEvent.ticket_id == ticket_id)
+        .order_by(TicketEvent.created_at.asc())
+        .all()
+    )
+
+    db.close()
+
+    return events
