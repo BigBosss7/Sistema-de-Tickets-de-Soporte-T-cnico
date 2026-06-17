@@ -248,9 +248,17 @@ def assign_ticket(
     ticket.assigned_to_id = assignment.assigned_to_id
     ticket.status = "ASSIGNED"
 
+    create_ticket_event(
+        db=db,
+        ticket_id=ticket.id,
+        user_id=current_user.id,
+        event_type="TICKET_ASSIGNED",
+        description=f"Ticket assigned to user {assignment.assigned_to_id}"
+    )
+
     db.commit()
     db.refresh(ticket)
-    db.close()
+    #db.close()
 
     return ticket 
 
@@ -295,9 +303,18 @@ def update_ticket_status(
     if status_update.status != "CLOSED":
         ticket.closed_at = None 
 
+    create_ticket_event(
+        db=db,
+        ticket_id=ticket.id,
+        user_id=current_user.id,
+        event_type="STATUS_CHANGED",
+        description=f"Status changed to{status_update.status}"
+    )
+
     db.commit()
     db.refresh(ticket)
-    db.close()
+    
+    #db.close()
 
     return ticket 
 
