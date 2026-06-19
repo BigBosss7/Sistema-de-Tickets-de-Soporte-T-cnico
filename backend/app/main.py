@@ -34,6 +34,7 @@ from app.schemas.ticket_event import TicketEventResponse
 from app.routers.auth import router as auth_router
 from app.routers.comments import router as comments_router
 from app.routers.tickets import router as ticket_router
+from app.routers.events import router as events_router
 from sqlalchemy import func 
 from sqlalchemy.orm import joinedload 
 from datetime import datetime, timedelta
@@ -57,6 +58,8 @@ app.include_router(auth_router)
 app.include_router(ticket_router)
 
 app.include_router(comments_router)
+
+app.include_router(events_router)
 
 Base.metadata.create_all(bind=engine)
 
@@ -221,41 +224,5 @@ def dashboard_stats():
        "average_resolution_hours": average_resolution_hours 
         }
 
-
-
-
-@app.get(
-    "/tickets/{ticket_id}/events",
-    response_model=List[TicketEventResponse]
-) 
-def get_ticket_events(
-    ticket_id: int,
-    current_user: User = Depends(get_current_user)
-):
-
-    db = SessionLocal()
-
-    ticket = (
-        db.query(Ticket)
-        .filter(Ticket.id == ticket_id)
-        .first()
-    )
-
-    if ticket is None:
-        db.close()
-        raise HTTPException(
-            status_code=404,
-            detail="Ticket not found"
-        )
-
-    events = (
-        db.query(TicketEvent)
-        .options(joinedload(TicketEvent.user))
-        .filter(TicketEvent.ticket_id == ticket_id)
-        .order_by(TicketEvent.created_at.asc())
-        .all()
-    )
-
-    db.close()
 
     return events
