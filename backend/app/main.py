@@ -5,9 +5,9 @@ from app.core.security import (
     hash_password, 
     verify_password,
     create_access_token,
-    get_current_user,
-    require_supervisor
-) 
+    get_current_user
+)
+
 from app.database import (
     engine,
     Base,
@@ -35,6 +35,7 @@ from app.routers.auth import router as auth_router
 from app.routers.comments import router as comments_router
 from app.routers.tickets import router as ticket_router
 from app.routers.events import router as events_router
+from app.routers.dashboard import router as dashboard_router
 from sqlalchemy import func 
 from sqlalchemy.orm import joinedload 
 from datetime import datetime, timedelta
@@ -60,6 +61,8 @@ app.include_router(ticket_router)
 app.include_router(comments_router)
 
 app.include_router(events_router)
+
+app.include_router(dashboard_router)
 
 Base.metadata.create_all(bind=engine)
 
@@ -166,63 +169,3 @@ def get_ticket(ticket_id: int):
 
 
 
-@app.get("/dashboard/stats")
-def dashboard_stats():
-    db = SessionLocal()
-
-    total_tickets = db.query(Ticket).count()
-
-    open_tickets = (
-        db.query(Ticket)
-        .filter(Ticket.status == "OPEN")
-        .count()
-    )
-
-    tickets_by_priority = (
-        db.query(Ticket.priority, func.count(Ticket.id))
-        .group_by(Ticket.priority)
-        .all()
-    )
-
-    tickets_by_technician = (
-        db.query(Ticket.assigned_to_id, func.count(Ticket.id))
-        .filter(Ticket.assigned_to_id.isnot(None))
-        .group_by(Ticket.assigned_to_id)
-        .all()
-    )
-
-    closed_tickets = (
-        db.query(Ticket)
-        .filter(Ticket.closed_at.isnot(None))
-        .all()
-    )
-
-    average_resolution_hours = 0
-
-    if closed_tickets:
-        total_resolution_time = timedelta()
-
-        for ticket in closed_tickets:
-            total_resolution_time += (ticket.closed_at - ticket.created_at)
-
-        average_resolution_time = total_resolution_time / len(closed_tickets)
-
-        average_resolution_hours = round(
-            average_resolution_time.total_seconds() / 3600,
-            2
-        )
-
-    db.close()
-
-   
-
-    return {
-       "total_tickets": total_tickets,
-       "open_tickets": open_tickets,
-       "tickets_by_priority": dict(tickets_by_priority),
-       "tickets_by_technician": dict(tickets_by_technician),
-       "average_resolution_hours": average_resolution_hours 
-        }
-
-
-    return events

@@ -13,7 +13,8 @@ from app.schemas.ticket import (
     TicketStatusUpdate
 )
 from app.core.events import create_ticket_event
-from app.core.security import get_current_user, require_supervisor 
+from app.core.security import get_current_user
+from app.core.permissions import require_supervisor 
 
 router = APIRouter(
     prefix="/tickets",
@@ -190,3 +191,5 @@ def update_ticket_status(
     #db.close()
 
     return ticket 
+
+
