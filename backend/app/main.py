@@ -32,6 +32,7 @@ from app.schemas.ticket_comment import(
 )
 from app.schemas.ticket_event import TicketEventResponse
 from app.routers.auth import router as auth_router
+from app.routers.comments import router as comments_router
 from app.routers.tickets import router as ticket_router
 from sqlalchemy import func 
 from sqlalchemy.orm import joinedload 
@@ -54,6 +55,8 @@ app = FastAPI(
 app.include_router(auth_router)
 
 app.include_router(ticket_router)
+
+app.include_router(comments_router)
 
 Base.metadata.create_all(bind=engine)
 
@@ -155,115 +158,9 @@ def get_ticket(ticket_id: int):
 
     return ticket 
 
-@app.patch("/tickets/{ticket_id}/assign", response_model=TicketResponse)
-def assign_ticket(
-    ticket_id: int, 
-    assignment: TicketAssign,
-    current_user: User = Depends(require_supervisor)
-    ):
-
-    db = SessionLocal()
-
-    ticket = (
-        db.query(Ticket)
-        .filter(Ticket.id == ticket_id)
-        .first()
-    )
-
-   
-    technician = (
-        db.query(User)
-        .filter(User.id == assignment.assigned_to_id)
-        .first()
-    )
-
-    if technician is None:
-        db.close()
-        raise HTTPException(
-            status_code=404,
-            detail="Technician not found"
-        )
-
-    if technician.role != "TECHNICIAN":
-        db.close()
-
-        raise HTTPException(
-            status_code=400,
-            detail="Only technicians can be assigned tickets"
-        )
-
-    ticket.assigned_to_id = assignment.assigned_to_id
-    ticket.status = "ASSIGNED"
-
-    create_ticket_event(
-        db=db,
-        ticket_id=ticket.id,
-        user_id=current_user.id,
-        event_type="TICKET_ASSIGNED",
-        description=f"Ticket assigned to user {assignment.assigned_to_id}"
-    )
-
-    db.commit()
-    db.refresh(ticket)
-    #db.close()
-
-    return ticket 
-
-@app.patch("/tickets/{ticket_id}/status", response_model=TicketResponse)
-def update_ticket_status(
-    ticket_id: int, 
-    status_update: TicketStatusUpdate,
-    current_user: User = Depends(get_current_user)
-    ):
-    db= SessionLocal()
-
-    ticket = (
-        db.query(Ticket)
-        .filter(Ticket.id == ticket_id)
-        .first()
-    )
-
-    
-    if ticket is None:
-        db.close()
-        raise HTTPException(
-            status_code=404,
-            detail="Ticket not found"
-        )
-
-        if current_user.role == "TECHNICIAN":
-            if ticket.assigned_to_id != current_user.id:
-
-                db.close()
-
-                raise HTTPException(
-                  status_code=403,
-                  detail="You can only update your assigned tickets"
-                )
 
 
-    ticket.status = status_update.status
 
-    if status_update.status == "CLOSED":
-        ticket.closed_at = datetime.utcnow()
-
-    if status_update.status != "CLOSED":
-        ticket.closed_at = None 
-
-    create_ticket_event(
-        db=db,
-        ticket_id=ticket.id,
-        user_id=current_user.id,
-        event_type="STATUS_CHANGED",
-        description=f"Status changed to {status_update.status}"
-    )
-
-    db.commit()
-    db.refresh(ticket)
-    
-    #db.close()
-
-    return ticket 
 
 
 @app.get("/dashboard/stats")
@@ -325,41 +222,7 @@ def dashboard_stats():
         }
 
 
-@app.get(
-    "/tickets/{ticket_id}/comments",
-    response_model=List[TicketCommentWithUserResponse]
-)
-def get_ticket_comments(
-    ticket_id: int,
-    current_user: User = Depends(get_current_user)
-):
-    db = SessionLocal()
 
-    ticket = (
-        db.query(Ticket)
-        .filter(Ticket.id == ticket_id)
-        .first()
-    )
-
-    if ticket is None:
-        db.close()
-        raise HTTPException(
-            status_code=404,
-            detail="Ticket not found"
-        )
-
-    comments = (
-        db.query(TicketComment)
-        .options(joinedload(TicketComment.user))
-        .filter(TicketComment.ticket_id == ticket_id)
-        .order_by(TicketComment.created_at.asc())
-        .all()
-    )
-
-    
-    db.close()
-
-    return comments 
 
 @app.get(
     "/tickets/{ticket_id}/events",

@@ -1,12 +1,19 @@
 from typing import List 
-from fastapi import APIRouter, Depends 
+from fastapi import APIRouter, Depends, HTTPException 
+from datetime import datetime
 
 from app.models.user import User 
 from app.database import SessionLocal
 from app.models.ticket import Ticket
-from app.schemas.ticket import TicketCreate, TicketResponse, TicketStatus
+from app.schemas.ticket import (
+    TicketCreate, 
+    TicketResponse, 
+    TicketStatus, 
+    TicketAssign,
+    TicketStatusUpdate
+)
 from app.core.events import create_ticket_event
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_supervisor 
 
 router = APIRouter(
     prefix="/tickets",
@@ -73,3 +80,113 @@ def get_tickets(
     db.close()
     
     return tickets 
+
+@router.patch("/tickets/{ticket_id}/assign", response_model=TicketResponse)
+def assign_ticket(
+    ticket_id: int, 
+    assignment: TicketAssign,
+    current_user: User = Depends(require_supervisor)
+    ):
+
+    db = SessionLocal()
+
+    ticket = (
+        db.query(Ticket)
+        .filter(Ticket.id == ticket_id)
+        .first()
+    )
+
+   
+    technician = (
+        db.query(User)
+        .filter(User.id == assignment.assigned_to_id)
+        .first()
+    )
+
+    if technician is None:
+        db.close()
+        raise HTTPException(
+            status_code=404,
+            detail="Technician not found"
+        )
+
+    if technician.role != "TECHNICIAN":
+        db.close()
+
+        raise HTTPException(
+            status_code=400,
+            detail="Only technicians can be assigned tickets"
+        )
+
+    ticket.assigned_to_id = assignment.assigned_to_id
+    ticket.status = "ASSIGNED"
+
+    create_ticket_event(
+        db=db,
+        ticket_id=ticket.id,
+        user_id=current_user.id,
+        event_type="TICKET_ASSIGNED",
+        description=f"Ticket assigned to user {assignment.assigned_to_id}"
+    )
+
+    db.commit()
+    db.refresh(ticket)
+    #db.close()
+
+    return ticket 
+
+@router.patch("/tickets/{ticket_id}/status", response_model=TicketResponse)
+def update_ticket_status(
+    ticket_id: int, 
+    status_update: TicketStatusUpdate,
+    current_user: User = Depends(get_current_user)
+    ):
+    db= SessionLocal()
+
+    ticket = (
+        db.query(Ticket)
+        .filter(Ticket.id == ticket_id)
+        .first()
+    )
+
+    
+    if ticket is None:
+        db.close()
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket not found"
+        )
+
+        if current_user.role == "TECHNICIAN":
+            if ticket.assigned_to_id != current_user.id:
+
+                db.close()
+
+                raise HTTPException(
+                  status_code=403,
+                  detail="You can only update your assigned tickets"
+                )
+
+
+    ticket.status = status_update.status
+
+    if status_update.status == "CLOSED":
+        ticket.closed_at = datetime.utcnow()
+
+    if status_update.status != "CLOSED":
+        ticket.closed_at = None 
+
+    create_ticket_event(
+        db=db,
+        ticket_id=ticket.id,
+        user_id=current_user.id,
+        event_type="STATUS_CHANGED",
+        description=f"Status changed to {status_update.status}"
+    )
+
+    db.commit()
+    db.refresh(ticket)
+    
+    #db.close()
+
+    return ticket 
