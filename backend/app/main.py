@@ -36,6 +36,7 @@ from app.routers.comments import router as comments_router
 from app.routers.tickets import router as ticket_router
 from app.routers.events import router as events_router
 from app.routers.dashboard import router as dashboard_router
+from app.routers.users import router as users_router
 from sqlalchemy import func 
 from sqlalchemy.orm import joinedload 
 from datetime import datetime, timedelta
@@ -63,6 +64,8 @@ app.include_router(comments_router)
 app.include_router(events_router)
 
 app.include_router(dashboard_router)
+
+app.include_router(users_router)
 
 Base.metadata.create_all(bind=engine)
 
@@ -98,47 +101,12 @@ def db_check():
             "detail": str(error)
         }
 
-@app.get("/users", response_model=List[UserResponse])
-def get_users():
-
-    db = SessionLocal()
-
-    users = db.query(User).all()
-
-    db.close()
 
 
-    return users
-
-@app.get("/me")
-def get_me(
-    current_user: User = Depends(get_current_user)
-):
-    return {
-        "id": current_user.id,
-        "name": current_user.name,
-        "email": current_user.email,
-        "role": current_user.role
-    }
 
 
-@app.post("/users", response_model=UserResponse)
-def create_user(user: UserCreate):
-    db = SessionLocal()
 
-    new_user = User(
-        name=user.name,
-        email=user.email,
-        password_hash=hash_password(user.password),
-        role=user.role
-    )
 
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    db.close()
-
-    return new_user
 
 
 
