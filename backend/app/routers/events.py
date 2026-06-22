@@ -17,7 +17,7 @@ router = APIRouter(
 )
 
 @router.get(
-    "/tickets/{ticket_id}/events",
+    "/{ticket_id}/events",
     response_model=List[TicketEventResponse]
 ) 
 def get_ticket_events(

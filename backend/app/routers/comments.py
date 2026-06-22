@@ -71,7 +71,7 @@ def create_ticket_comment(
     return new_commment
 
 @router.get(
-    "/tickets/{ticket_id}/comments",
+    "/{ticket_id}/comments",
     response_model=List[TicketCommentWithUserResponse]
 )
 def get_ticket_comments(

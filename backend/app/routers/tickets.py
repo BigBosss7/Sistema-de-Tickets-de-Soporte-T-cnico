@@ -15,6 +15,7 @@ from app.schemas.ticket import (
 from app.core.events import create_ticket_event
 from app.core.security import get_current_user
 from app.core.permissions import require_supervisor 
+from app.services.ticket_service import create_ticket_service
 
 router = APIRouter(
     prefix="/tickets",
@@ -25,30 +26,11 @@ router = APIRouter(
 def create_ticket(ticket: TicketCreate):
     db = SessionLocal()
 
-    new_ticket = Ticket(
-        title=ticket.title,
-        description=ticket.description,
-        priority=ticket.priority,
-        created_by_id=ticket.created_by_id
-    )
-
-    db.add(new_ticket)
-    db.commit()
-    db.refresh(new_ticket)
-
-    
-    
-    create_ticket_event(
+    new_ticket = create_ticket_service(
         db=db,
-        ticket_id=new_ticket.id,
-        user_id=ticket.created_by_id,
-        event_type="TICKET_CREATED",
-        description="Ticket created"
+        ticket=ticket
     )
 
-    db.commit()
-    db.refresh(new_ticket)
-    
     db.close()
 
     return new_ticket 
@@ -82,7 +64,7 @@ def get_tickets(
     
     return tickets 
 
-@router.patch("/tickets/{ticket_id}/assign", response_model=TicketResponse)
+@router.patch("/{ticket_id}/assign", response_model=TicketResponse)
 def assign_ticket(
     ticket_id: int, 
     assignment: TicketAssign,
@@ -136,7 +118,7 @@ def assign_ticket(
 
     return ticket 
 
-@router.patch("/tickets/{ticket_id}/status", response_model=TicketResponse)
+@router.patch("/{ticket_id}/status", response_model=TicketResponse)
 def update_ticket_status(
     ticket_id: int, 
     status_update: TicketStatusUpdate,
@@ -189,6 +171,28 @@ def update_ticket_status(
     db.refresh(ticket)
     
     #db.close()
+
+    return ticket 
+
+@router.get("/{ticket_id}", response_model=TicketResponse)
+def get_ticket(ticket_id: int):
+
+    db = SessionLocal()
+
+    ticket = (
+        db.query(Ticket)
+        .filter(Ticket.id == ticket_id)
+        .first()
+    )
+
+    db.close()
+
+    if ticket is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket not found"
+        )
+        
 
     return ticket 
 
