@@ -15,7 +15,11 @@ from app.schemas.ticket import (
 from app.core.events import create_ticket_event
 from app.core.security import get_current_user
 from app.core.permissions import require_supervisor 
-from app.services.ticket_service import create_ticket_service
+from app.services.ticket_service import (
+    create_ticket_service,
+    assign_ticket_service,
+    update_ticket_status_service
+)
 
 router = APIRouter(
     prefix="/tickets",
@@ -73,49 +77,16 @@ def assign_ticket(
 
     db = SessionLocal()
 
-    ticket = (
-        db.query(Ticket)
-        .filter(Ticket.id == ticket_id)
-        .first()
-    )
-
-   
-    technician = (
-        db.query(User)
-        .filter(User.id == assignment.assigned_to_id)
-        .first()
-    )
-
-    if technician is None:
-        db.close()
-        raise HTTPException(
-            status_code=404,
-            detail="Technician not found"
-        )
-
-    if technician.role != "TECHNICIAN":
-        db.close()
-
-        raise HTTPException(
-            status_code=400,
-            detail="Only technicians can be assigned tickets"
-        )
-
-    ticket.assigned_to_id = assignment.assigned_to_id
-    ticket.status = "ASSIGNED"
-
-    create_ticket_event(
+    ticket = assign_ticket_service(
         db=db,
-        ticket_id=ticket.id,
-        user_id=current_user.id,
-        event_type="TICKET_ASSIGNED",
-        description=f"Ticket assigned to user {assignment.assigned_to_id}"
+        ticket_id=ticket_id,
+        assignment=assignment,
+        current_user=current_user
     )
 
-    db.commit()
-    db.refresh(ticket)
-    #db.close()
-
+    db.close()
+   
+  
     return ticket 
 
 @router.patch("/{ticket_id}/status", response_model=TicketResponse)
@@ -126,51 +97,14 @@ def update_ticket_status(
     ):
     db= SessionLocal()
 
-    ticket = (
-        db.query(Ticket)
-        .filter(Ticket.id == ticket_id)
-        .first()
-    )
-
-    
-    if ticket is None:
-        db.close()
-        raise HTTPException(
-            status_code=404,
-            detail="Ticket not found"
-        )
-
-        if current_user.role == "TECHNICIAN":
-            if ticket.assigned_to_id != current_user.id:
-
-                db.close()
-
-                raise HTTPException(
-                  status_code=403,
-                  detail="You can only update your assigned tickets"
-                )
-
-
-    ticket.status = status_update.status
-
-    if status_update.status == "CLOSED":
-        ticket.closed_at = datetime.utcnow()
-
-    if status_update.status != "CLOSED":
-        ticket.closed_at = None 
-
-    create_ticket_event(
+    ticket =  update_ticket_status_service(
         db=db,
-        ticket_id=ticket.id,
-        user_id=current_user.id,
-        event_type="STATUS_CHANGED",
-        description=f"Status changed to {status_update.status}"
+        ticket_id=ticket_id,
+        status_update=status_update,
+        current_user=current_user
     )
-
-    db.commit()
-    db.refresh(ticket)
     
-    #db.close()
+    db.close()
 
     return ticket 
 
