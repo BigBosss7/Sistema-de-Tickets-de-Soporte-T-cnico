@@ -18,7 +18,8 @@ from app.core.permissions import require_supervisor
 from app.services.ticket_service import (
     create_ticket_service,
     assign_ticket_service,
-    update_ticket_status_service
+    update_ticket_status_service,
+    get_ticket_service
 )
 
 router = APIRouter(
@@ -41,28 +42,14 @@ def create_ticket(ticket: TicketCreate):
 
 @router.get("", response_model=List[TicketResponse])
 def get_tickets(
-    status: TicketStatus | None = None, 
-    assigned_to: int | None = None,
     current_user: User = Depends(get_current_user)
-    ):
-
+):
     db = SessionLocal()
 
-    query = db.query(Ticket)
-
-    if current_user.role == "USER":
-        query = query.filter(Ticket.created_by_id == current_user.id)
-
-    if current_user.role == "TECHNICIAN":
-        query = query.filter(Ticket.assigned_to_id == current_user.id)
-
-    if status:
-        query = query.filter(Ticket.status == status)
-
-    if assigned_to and current_user.role == "SUPERVISOR":
-        query = query.filter(Ticket.assigned_to_id == assigned_to)
-
-    tickets = query.all()
+    tickets = get_tickets_service(
+        db=db,
+        current_user=current_user
+    )
 
     db.close()
     
@@ -103,30 +90,26 @@ def update_ticket_status(
         status_update=status_update,
         current_user=current_user
     )
-    
+
     db.close()
 
     return ticket 
 
 @router.get("/{ticket_id}", response_model=TicketResponse)
-def get_ticket(ticket_id: int):
+def get_ticket(
+    ticket_id: int,
+    current_user: User = Depends(get_current_user)
+    ):
 
     db = SessionLocal()
 
-    ticket = (
-        db.query(Ticket)
-        .filter(Ticket.id == ticket_id)
-        .first()
+    ticket = get_ticket_service(
+        db=db,
+        ticket_id=ticket_id,
+        current_user=current_user
     )
 
     db.close()
-
-    if ticket is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Ticket not found"
-        )
-        
 
     return ticket 
 

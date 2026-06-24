@@ -136,3 +136,56 @@ def update_ticket_status_service(
     db.refresh(ticket)
 
     return ticket 
+
+def get_tickets_service(
+    db: Session,
+    current_user: User
+):
+
+    if current_user.role == "SUPERVISOR":
+        return db.query(Ticket).all()
+
+    if current_user.role == "TECHNICIAN":
+        return (
+            db.query(Ticket)
+            .filter(Ticket.assigned_to_id == currentt_user.id)
+            .all()
+        )
+
+    return (
+        db.query(Ticket)
+        .filter(Ticket.created_by_id == current_user.id)
+        .all()
+    )
+
+def get_ticket_service(
+    db: Session,
+    ticket_id: int,
+    current_user: User
+):
+
+    ticket = (
+        db.query(Ticket)
+        .filter(Ticket.id == ticket_id)
+        .first()
+    )
+
+    if ticket is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Ticket not found"
+        )
+
+    if current_user.role == "USER" and ticket.created_by_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only view your tickets"
+        )
+
+    if current_user.role == "TECHNICIAN" and ticket.assigned_to_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only view your assigned tickets"
+        )
+
+    return ticket

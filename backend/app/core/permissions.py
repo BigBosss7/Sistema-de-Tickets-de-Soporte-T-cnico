@@ -26,3 +26,17 @@ def require_technician(
         )
 
     return current_user
+
+def require_technician_or_supervisor(
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role not in [
+        "TECHNICIAN",
+        "SUPERVISOR"
+    ]:
+      raise HTTPException(
+           status_code=403,
+           detail="Access denied"
+      )
+
+    return current_user 
