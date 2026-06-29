@@ -1,8 +1,14 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request 
+from fastapi.responses import JSONResponse
 
 from app.database import (
     engine,
     Base
+)
+from app.exceptions.ticket_exceptions import (
+    TicketNotFoundException,
+    TechnicianNotFoundException,
+    UnauthorizedTicketAccessException
 )
 from app.models.user import User
 from app.models.ticket import Ticket
@@ -23,6 +29,23 @@ app = FastAPI(
     description="API para gestionar tickets de soporte técnico.",
     version="0.1.0"
 )
+
+@app.exception_handler(TicketNotFoundException)
+async def ticket_not_found_handler(
+    request: Request,
+    exc: TicketNotFoundException
+):
+    
+    return JSONResponse(
+        status_code=404,
+        content={
+            "success": False,
+            "error": {
+                "code": "TICKET_NOT_FOUND",
+                "message": "Ticket not found"
+            }
+        }
+    )
 
 app.include_router(auth_router)
 

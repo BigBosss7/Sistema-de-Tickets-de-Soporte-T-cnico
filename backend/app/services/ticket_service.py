@@ -2,6 +2,7 @@ from fastapi import HTTPException
 from datetime import datetime
 from sqlalchemy.orm import Session
 
+from app.exceptions.ticket_exceptions import TicketNotFoundException
 from app.models.ticket import Ticket
 from app.models.user import User
 
@@ -117,7 +118,16 @@ def update_ticket_status_service(
             detail="Ticket not found"
         )
 
+    if current_user.role == "TECHNICIAN":
+        if ticket.assigned_to_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only update your assigned tickets"
+            )
+
     ticket.status = status_update.status
+
+   
 
     if status_update.status == "CLOSED":
         ticket.closed_at = datetime.utcnow()
@@ -171,10 +181,7 @@ def get_ticket_service(
     )
 
     if ticket is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Ticket not found"
-        )
+        raise TicketNotFoundException()
 
     if current_user.role == "USER" and ticket.created_by_id != current_user.id:
         raise HTTPException(

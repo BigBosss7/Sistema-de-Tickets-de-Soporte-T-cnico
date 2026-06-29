@@ -14,7 +14,7 @@ from app.schemas.ticket import (
 )
 from app.core.events import create_ticket_event
 from app.core.security import get_current_user
-from app.core.permissions import require_supervisor 
+from app.core.permissions import require_supervisor, require_technician_or_supervisor 
 from app.services.ticket_service import (
     create_ticket_service,
     assign_ticket_service,
@@ -80,7 +80,7 @@ def assign_ticket(
 def update_ticket_status(
     ticket_id: int, 
     status_update: TicketStatusUpdate,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_technician_or_supervisor)
     ):
     db= SessionLocal()
 

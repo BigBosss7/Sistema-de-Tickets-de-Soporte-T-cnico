@@ -36,7 +36,7 @@ def require_technician_or_supervisor(
     ]:
       raise HTTPException(
            status_code=403,
-           detail="Access denied"
+           detail="Technician or supervisor acces required"
       )
 
     return current_user 
