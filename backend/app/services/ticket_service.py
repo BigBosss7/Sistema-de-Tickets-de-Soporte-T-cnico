@@ -2,7 +2,11 @@ from fastapi import HTTPException
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from app.exceptions.ticket_exceptions import TicketNotFoundException
+from app.exceptions.ticket_exceptions import (
+    TicketNotFoundException,
+    TechnicianNotFoundException,
+    UnauthorizedTicketAccessException
+)
 from app.models.ticket import Ticket
 from app.models.user import User
 
@@ -71,10 +75,8 @@ def assign_ticket_service(
    ) 
 
    if technician is None:
-       raise HTTPException(
-            status_code=404,
-            deatail="Technician not found"
-       )  
+       raise TechnicianNotFoundException()
+
 
    if technician.role != "TECHNICIAN":
        raise HTTPException(
@@ -120,10 +122,7 @@ def update_ticket_status_service(
 
     if current_user.role == "TECHNICIAN":
         if ticket.assigned_to_id != current_user.id:
-            raise HTTPException(
-                status_code=403,
-                detail="You can only update your assigned tickets"
-            )
+            raise UnauthorizedTicketAccessException()
 
     ticket.status = status_update.status
 

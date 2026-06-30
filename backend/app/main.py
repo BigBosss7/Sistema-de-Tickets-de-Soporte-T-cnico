@@ -47,6 +47,19 @@ async def ticket_not_found_handler(
         }
     )
 
+@app.exception_handler(UnauthorizedTicketAccessException)
+async def unauthorized_ticket_acces_handler(request: Request, exc: UnauthorizedTicketAccessException):
+   return JSONResponse(
+      status_code=403,
+      content={
+        "success": False,
+        "error": {
+            "code": "UNAUTHORIZED_TICKET_ACCESS",
+            "message": "You are not allowed to access this ticket"
+        }
+      }
+   )
+
 app.include_router(auth_router)
 
 app.include_router(ticket_router)
