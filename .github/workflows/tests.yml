@@ -1,57 +1,54 @@
-name: Bakcend Tests
+name: Backend Tests
 
 on:
-  
-  push: 
+  push:
     branches:
-      - feature/posgresql
+      - feature/postgresql
       - main
   pull_request:
-
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     services:
-      posrgres:
+      postgres:
         image: postgres:16
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: posgres
-          POSGRES_DB: support_tickets
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: support_tickets
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U posgres -d support_tickets"
+          --health-cmd="pg_isready -U postgres -d support_tickets"
           --health-interval=10s
+          --health-timeout=5s
           --health-retries=5
 
     defaults:
       run:
-       working-directory: backend 
+        working-directory: backend
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-pyhton@v5
+        uses: actions/setup-python@v5
         with:
-          pyhton-version: "3.12"
+          python-version: "3.12"
 
-      - name: Install dependecies
+      - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip 
-          python -m pip install -r requeriments.txt
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
 
-      - name : Run tests
+      - name: Run tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/support_tickets
           SECRET_KEY: test_secret_key
           ALGORITHM: HS256
           ACCESS_TOKEN_EXPIRE_MINUTES: 10080
         run: pytest
-
-      
       
