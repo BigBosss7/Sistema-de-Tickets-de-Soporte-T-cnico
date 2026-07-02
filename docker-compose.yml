@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:16
+    container_name: support_ticket_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: support_tickets
+    ports:
+     - "5432:5432"
+    volumes:
+     - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+    container_name: support_ticket_backend
+    ports:
+     - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/support_tickets
+      SECRET_KEY: docker_secret_key
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 10080
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
