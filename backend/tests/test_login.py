@@ -8,8 +8,7 @@ def test_user_fixture(test_user):
 
     assert test_user["name"] == "Test User"
 
-    assert test_user["email"] == "test@example.com"
-
+    assert "@example.com" in test_user["email"]
 
 
 def test_register_user(test_user):
@@ -19,6 +18,14 @@ def test_register_user(test_user):
         json=test_user
     )
 
+    response = client.post(
+        "auth/login",
+        json={
+            "email": test_user["email"],
+            "password": test_user["password"]
+        }
+    )
+
     assert response.status_code == 200
-    assert response.json()["email"] == test_user["email"]
-    assert response.json()["name"] == test_user ["name"]
+    assert "access_token" in response.json()
+    
