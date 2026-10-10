@@ -23,6 +23,8 @@ class User(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    phone = Column(String(20), nullable=True)
+
     comments = relationship(
         "TicketComment",
         back_populates="user"
