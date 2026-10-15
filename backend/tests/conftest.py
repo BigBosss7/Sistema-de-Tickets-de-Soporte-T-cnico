@@ -5,7 +5,19 @@ from fastapi.testclient import TestClient
 
 from app.main import app 
 
+from app.database import SessionLocal
+
 client = TestClient(app)
+
+
+@pytest.fixture
+def db_session():
+    db = SessionLocal()
+
+    try:
+        yield db 
+    finally:
+        db.close()
 
 
 @pytest.fixture
